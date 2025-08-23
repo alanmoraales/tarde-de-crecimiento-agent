@@ -21,12 +21,25 @@ const sendMessageToGrowthChannel = async (message: string) => {
   });
 };
 
+const sendDirectMessage = async (userId: string, message: string) => {
+  return await slack.chat.postMessage({
+    channel: userId,
+    markdown_text: message,
+  });
+};
+
 const isMessageFromAgent = (userId: string) => {
   return userId === environment.slack.agentUserId;
+};
+
+const isDirectMessage = (channelType: string) => {
+  return channelType === "im";
 };
 
 export default {
   sendMessageToGrowthChannel,
   sendMessageToGrowthSquadChannel,
   isMessageFromAgent,
+  isDirectMessage,
+  sendDirectMessage,
 };
