@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/trpc": ["./server/trpc.ts"],
+      "@/router": ["./server/router.ts"],
+      "@/*": [
+        "./server/environment/*",
+        "./server/slack/*",
+        "./server/memory/*",
+        "./server/agents/talkCM/*",
+        "./server/agents/tools/*"
+      ]
+    }
+  }
+}
