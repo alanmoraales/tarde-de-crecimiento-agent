@@ -22,7 +22,7 @@ const router = trpc.createRouter({
     console.log("Message sent");
     await memory.setThreadId(message.ts || "");
   }),
-  newMessage: trpc.publicProcedure
+  onNewMessage: trpc.publicProcedure
     .input(
       z.discriminatedUnion("type", [
         z.object({
