@@ -21,9 +21,14 @@ const sendMessageToGrowthChannel = async (message: string) => {
   });
 };
 
-const sendDirectMessage = async (userId: string, message: string) => {
+const sendDirectMessage = async (
+  userId: string,
+  ts: string,
+  message: string
+) => {
   return await slack.chat.postMessage({
     channel: userId,
+    thread_ts: ts,
     markdown_text: message,
   });
 };
