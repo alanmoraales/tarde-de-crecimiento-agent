@@ -63,9 +63,10 @@ const router = trpc.createRouter({
 
       const isDirectMessage = slack.isDirectMessage(payload.event.channel_type);
       if (isDirectMessage) {
-        console.log("iS a direct message, sending greeting");
+        console.log("is a direct message, sending greeting");
         slack.sendDirectMessage(
           payload.event.user,
+          payload.event.thread_ts,
           "Hola, soy el agente de la Tarde de Crecimiento. Actualmente no puedo ayudarte mucho más. Ponte en contacto con un organizador."
         );
         return;
