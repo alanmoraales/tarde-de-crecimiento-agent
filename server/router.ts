@@ -23,6 +23,12 @@ const router = trpc.createRouter({
     await memory.setThreadId(message.ts || "");
   }),
   onNewMessage: trpc.publicProcedure
+    // Middleware to debug raw input before parsing
+    // .use(async (props) => {
+    //   const rawInput = await props.getRawInput();
+    //   console.log("New message", rawInput);
+    //   return props.next();
+    // })
     .input(
       z.discriminatedUnion("type", [
         z.object({
@@ -36,6 +42,7 @@ const router = trpc.createRouter({
             user: z.string(),
             thread_ts: z.string(),
             ts: z.string(),
+            channel_type: z.string(),
           }),
         }),
       ])
@@ -51,6 +58,16 @@ const router = trpc.createRouter({
       const isMessageFromAgent = slack.isMessageFromAgent(payload.event.user);
       if (isMessageFromAgent) {
         console.log("is a message from the agent, skipping");
+        return;
+      }
+
+      const isDirectMessage = slack.isDirectMessage(payload.event.channel_type);
+      if (isDirectMessage) {
+        console.log("iS a direct message, sending greeting");
+        slack.sendDirectMessage(
+          payload.event.user,
+          "Hola, soy el agente de la Tarde de Crecimiento. Actualmente no puedo ayudarte mucho más. Ponte en contacto con un organizador."
+        );
         return;
       }
 
