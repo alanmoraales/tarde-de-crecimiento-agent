@@ -4,7 +4,7 @@
   "description": "Agente inteligente para automatizar tareas de Tarde de Crecimiento",
   "main": "server/index.ts",
   "scripts": {
-    "start": "tsx --env-file=.env server/index.ts",
+    "start": "tsx server/index.ts",
     "dev": "tsx watch --env-file=.env server/index.ts"
   },
   "author": "Alan Morales",
