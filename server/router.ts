@@ -19,7 +19,7 @@ const router = trpc.createRouter({
       },
     ]);
     const message = await slack.sendMessageToGrowthSquadChannel(initialMessage);
-    console.log("Message sent", message);
+    console.log("Message sent");
     await memory.setThreadId(message.ts || "");
   }),
   newMessage: trpc.publicProcedure
