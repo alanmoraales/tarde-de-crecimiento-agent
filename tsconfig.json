@@ -9,6 +9,7 @@
         "./server/slack/*",
         "./server/memory/*",
         "./server/agents/talkCM/*",
+        "./server/agents/talkInfoGatherer/*",
         "./server/agents/tools/*"
       ]
     }

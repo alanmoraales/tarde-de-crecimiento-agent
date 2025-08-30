@@ -26,9 +26,18 @@ const sendDirectMessage = async (
   ts: string,
   message: string
 ) => {
+  console.log("Sending direct message to userId", userId, "with ts", ts);
   return await slack.chat.postMessage({
     channel: userId,
     thread_ts: ts,
+    markdown_text: message,
+  });
+};
+
+const sendNewDirectMessage = async (userId: string, message: string) => {
+  console.log("Sending new direct message to userId", userId);
+  return await slack.chat.postMessage({
+    channel: userId,
     markdown_text: message,
   });
 };
@@ -47,4 +56,5 @@ export default {
   isMessageFromAgent,
   isDirectMessage,
   sendDirectMessage,
+  sendNewDirectMessage,
 };

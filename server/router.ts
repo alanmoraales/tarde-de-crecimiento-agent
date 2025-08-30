@@ -3,6 +3,7 @@ import memory from "@/memory.service";
 import slack from "@/slack.service";
 import talkCM from "@/talkCM.agent";
 import { z } from "zod";
+import talkInfoGatherer from "@/talkInfoGatherer.agent";
 
 const router = trpc.createRouter({
   startNewTalkThread: trpc.publicProcedure.mutation(async () => {
@@ -22,6 +23,20 @@ const router = trpc.createRouter({
     console.log("Message sent");
     await memory.setThreadId(message.ts || "");
   }),
+  startNextWeeksTalkInformationGathering: trpc.publicProcedure.mutation(
+    async () => {
+      await memory.clearTalkInfoGathererMemory();
+      await memory.addTalkInfoGathererMessages([
+        {
+          role: "user",
+          content:
+            "Iniciemos la recolección de información para la próxima charla",
+        },
+      ]);
+      const messages = await memory.getTalkInfoGathererMessages();
+      await talkInfoGatherer.generateText({ messages });
+    }
+  ),
   onNewMessage: trpc.publicProcedure
     // Middleware to debug raw input before parsing
     // .use(async (props) => {
@@ -63,13 +78,52 @@ const router = trpc.createRouter({
 
       const isDirectMessage = slack.isDirectMessage(payload.event.channel_type);
       if (isDirectMessage) {
-        console.log("is a direct message, sending greeting");
-        slack.sendDirectMessage(
-          payload.event.user,
-          payload.event.thread_ts,
-          "Hola, soy el agente de la Tarde de Crecimiento. Actualmente no puedo ayudarte mucho más. Ponte en contacto con un organizador."
-        );
-        return;
+        // is direct message from next week's speaker: follow up information gathering
+        const nextWeekTalkSlackUserId =
+          await memory.getNextWeekTalkSpeakerSlackId();
+        if (nextWeekTalkSlackUserId === payload.event.user) {
+          const currentMessages = await memory.getTalkInfoGathererMessages();
+          const isNewMessage = currentMessages.every(
+            (message) => message.ts !== payload.event.ts
+          );
+          if (!isNewMessage) {
+            console.log("is not a new message, skipping");
+            return;
+          }
+          console.log(
+            "is a direct message from the next week's speaker, following up information gathering"
+          );
+          await memory.addTalkInfoGathererMessages([
+            {
+              role: "user",
+              content: payload.event.text,
+              ts: payload.event.ts,
+              threadId: payload.event.thread_ts,
+            },
+            {
+              role: "assistant",
+              content:
+                "He recibido un nuevo mensaje del speaker. Debo revisar el timestamp de los mensajes para responder adecuadamente. El timestamp vendrá en cada mensaje como la propiedad 'ts'. Si no ha pasado mucho tiempo desde el último mensaje, debo seguir la conversación. Si ha pasado mucho tiempo, debo enviar un mensaje de saludo y preguntar por la información que necesito. Debo enviar un único mensaje de respuesta al speaker.",
+            },
+          ]);
+          console.log("payload.event.thread_ts", payload.event.thread_ts);
+          const messages = await memory.getTalkInfoGathererMessages();
+          await talkInfoGatherer.generateText({
+            messages,
+            requireToolChoice: true,
+            threadId: payload.event.thread_ts,
+          });
+          return;
+        } else {
+          // is direct message from any other user: send greeting
+          console.log("is a direct message, sending greeting");
+          slack.sendDirectMessage(
+            payload.event.user,
+            payload.event.thread_ts,
+            "Hola, soy el agente de la Tarde de Crecimiento. Actualmente no puedo ayudarte mucho más. Ponte en contacto con un organizador."
+          );
+          return;
+        }
       }
 
       const threadId = await memory.getThreadId();
