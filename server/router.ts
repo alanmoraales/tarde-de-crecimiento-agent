@@ -176,7 +176,7 @@ const executeSpeakerFollowUp = async (event: {
    */
   const currentMessages = await memory.getTalkInfoGathererMessages();
   const isNewMessage = currentMessages.every(
-    (message) => message.ts !== event.ts
+    (message) => message.timestamp !== event.ts
   );
   if (!isNewMessage) {
     console.log("is not a new message, skipping");
@@ -191,8 +191,7 @@ const executeSpeakerFollowUp = async (event: {
     {
       role: "user",
       content: event.text,
-      ts: event.ts,
-      threadId: event.thread_ts,
+      timestamp: event.ts,
     },
     {
       role: "assistant",
@@ -254,7 +253,9 @@ const executeTalkAnnouncement = async (event: {
    * and avoid duplicating the code for each agent
    */
   let messages = await memory.getMessages();
-  const isNewMessage = messages.every((message) => message.ts !== event.ts);
+  const isNewMessage = messages.every(
+    (message) => message.timestamp !== event.ts
+  );
   if (!isNewMessage) {
     console.log("is not a new message, skipping");
     return;
@@ -266,7 +267,7 @@ const executeTalkAnnouncement = async (event: {
     {
       role: "user",
       content: event.text,
-      ts: event.ts,
+      timestamp: event.ts,
     },
   ]);
   messages = await memory.getMessages();

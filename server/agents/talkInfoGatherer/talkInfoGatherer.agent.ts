@@ -98,7 +98,7 @@ const talkInfoGatherer = {
               {
                 role: "assistant",
                 content: messageSent,
-                ts: (Date.now() / 1000).toString(),
+                timestamp: (Date.now() / 1000).toString(),
               },
             ]);
           }
@@ -123,7 +123,7 @@ const talkInfoGatherer = {
               {
                 role: "assistant",
                 content: messageForSpeaker.text,
-                ts: messageForSpeaker.ts,
+                timestamp: messageForSpeaker.ts,
               },
             ]);
           }
