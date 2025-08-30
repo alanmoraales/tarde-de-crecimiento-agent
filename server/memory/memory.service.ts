@@ -3,11 +3,30 @@ import type { Data, Message } from "@/memory.types";
 
 const getDb = async () =>
   await JSONFilePreset<Data>("db.json", {
+    // Legacy structure
     threadId: "",
     messages: [],
     talkInfoGathererThreadId: "",
     nextWeekTalkSpeakerSlackId: "U03AGCJQ1FA",
     talkInfoGathererMessages: [],
+
+    // New structure
+    threads: [],
+    nextWeekTalk: {
+      speaker: {
+        name: "",
+        slackUserId: "",
+      },
+      talk: {
+        name: "",
+        description: "",
+        date: "",
+      },
+      conversation: {
+        speakerMessagesThreadId: "",
+        organizationMessagesThreadId: "",
+      },
+    },
   });
 
 // Talk info gatherer memory
