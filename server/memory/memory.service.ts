@@ -7,7 +7,7 @@ const getDb = async () =>
     threadId: "",
     messages: [],
     talkInfoGathererThreadId: "",
-    nextWeekTalkSpeakerSlackId: "U03AGCJQ1FA",
+    nextWeekTalkSpeakerSlackId: "D057ZC51HHB",
     talkInfoGathererMessages: [],
 
     // New structure
