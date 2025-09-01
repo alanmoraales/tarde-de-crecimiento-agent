@@ -13,8 +13,8 @@ const getTalksPlanning = tool({
      */
     const nextWeekTalkInfo = {
       title: "La ciencia de conseguir grandes cosas",
-      speaker: "Alan Morales",
-      slackUserId: "U03AGCJQ1FA",
+      speaker: "Héctor Ortiz",
+      slackUserId: "D057ZC51HHB",
       date: "04/09/2025",
     };
     return [nextWeekTalkInfo];
