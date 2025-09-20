@@ -3,30 +3,31 @@ import { ChatPostMessageResponse } from "@slack/web-api";
 import { tool } from "ai";
 import { z } from "zod";
 
-const createSendDirectMessageTool = (threadId?: string) => {
+const createSendDirectMessageTool = (
+  threadId?: string,
+  speakerSlackUserId?: string
+) => {
   console.log("Creating sendDirectMessage tool with threadId", threadId);
   return tool({
     description:
       "Herramienta para enviar un mensaje directo a un usuario de Slack",
     inputSchema: z.object({
       message: z.string().describe("El mensaje a enviar al usuario de Slack."),
-      userId: z
-        .string()
-        .describe(
-          "El ID del usuario de Slack a quien se le enviará el mensaje."
-        ),
     }),
-    execute: async ({ message, userId }) => {
+    execute: async ({ message }) => {
       console.log("Executing sendDirectMessage tool with threadId", threadId);
       let messageResponse = {};
       // de hecho podeemos combinar ambos casos, porque la función post message del sdk de Slack ya maneja el caso de que el threadId no exista
       if (!threadId) {
         console.log("Sending new direct message");
-        messageResponse = await slack.sendNewDirectMessage(userId, message);
+        messageResponse = await slack.sendNewDirectMessage(
+          speakerSlackUserId || "",
+          message
+        );
       } else {
         console.log("Sending direct message to threadId", threadId);
         messageResponse = await slack.sendDirectMessage(
-          userId,
+          speakerSlackUserId || "",
           threadId,
           message
         );

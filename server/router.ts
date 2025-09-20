@@ -33,8 +33,10 @@ const router = trpc.createRouter({
             "Iniciemos la recolección de información para la próxima charla",
         },
       ]);
+      await memory.setNextWeekTalkSpeakerSlackId("U039C0JRCAK");
       const messages = await memory.getTalkInfoGathererMessages();
-      await talkInfoGatherer.generateText({ messages });
+      const speakerSlackUserId = await memory.getNextWeekTalkSpeakerSlackId();
+      await talkInfoGatherer.generateText({ messages, speakerSlackUserId });
     }
   ),
   onNewMessage: trpc.publicProcedure
@@ -193,17 +195,14 @@ const executeSpeakerFollowUp = async (event: {
       content: event.text,
       timestamp: event.ts,
     },
-    {
-      role: "assistant",
-      content:
-        "He recibido un nuevo mensaje del speaker. Debo revisar el timestamp de los mensajes para responder adecuadamente. El timestamp vendrá en cada mensaje como la propiedad 'ts'. Si no ha pasado mucho tiempo desde el último mensaje, debo seguir la conversación. Si ha pasado mucho tiempo, debo enviar un mensaje de saludo y preguntar por la información que necesito. Debo enviar un único mensaje de respuesta al speaker.",
-    },
   ]);
   const messages = await memory.getTalkInfoGathererMessages();
+  const speakerSlackUserId = await memory.getNextWeekTalkSpeakerSlackId();
   await talkInfoGatherer.generateText({
     messages,
     requireToolChoice: true,
     threadId: event.thread_ts,
+    speakerSlackUserId,
   });
   return;
 };

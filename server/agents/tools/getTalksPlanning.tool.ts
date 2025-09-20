@@ -12,10 +12,9 @@ const getTalksPlanning = tool({
      * For now, we will have a hardcoded value for the next week's talk
      */
     const nextWeekTalkInfo = {
-      title: "Talking to machines - Voice Agents",
-      speaker: "Carlos Castro",
-      slackUserId: "U039C0JRCAK",
-      date: "18/09/2025",
+      title: "Contruyendo un Agente para la Tarde de Crecimiento",
+      speaker: "Alan Morales",
+      date: "25/09/2025",
     };
     return [nextWeekTalkInfo];
   },

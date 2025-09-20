@@ -16,10 +16,12 @@ const talkInfoGatherer = {
     messages,
     requireToolChoice,
     threadId = "",
+    speakerSlackUserId = "",
   }: {
     messages: Message[];
     requireToolChoice?: boolean;
     threadId?: string;
+    speakerSlackUserId: string;
   }) {
     // console.log("requireToolChoice", requireToolChoice, messages);
     console.log("Generating text for threadId", threadId);
@@ -27,8 +29,14 @@ const talkInfoGatherer = {
       model: google("gemini-2.0-flash"),
       system,
       tools: {
-        sendMessageToGrowthSquad: createSendMessageToGrowthSquadTool(threadId),
-        sendDirectMessage: createSendDirectMessageTool(threadId),
+        sendMessageToGrowthSquad: createSendMessageToGrowthSquadTool(
+          threadId,
+          speakerSlackUserId
+        ),
+        sendDirectMessage: createSendDirectMessageTool(
+          threadId,
+          speakerSlackUserId
+        ),
         getTalksPlanning,
         finishInformationGathering: tool({
           description:
@@ -42,15 +50,8 @@ const talkInfoGatherer = {
               .describe(
                 "El mensaje a enviar al equipo organizativo con la información de la charla"
               ),
-            speakerSlackUserId: z
-              .string()
-              .describe("El ID del usuario de Slack del speaker"),
           }),
-          execute: async ({
-            speakerMessage,
-            growthSquadMessage,
-            speakerSlackUserId,
-          }) => {
+          execute: async ({ speakerMessage, growthSquadMessage }) => {
             await slack.sendMessageToGrowthSquadChannel(growthSquadMessage);
             if (threadId) {
               const messageResponse = await slack.sendDirectMessage(

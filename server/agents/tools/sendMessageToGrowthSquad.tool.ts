@@ -3,7 +3,10 @@ import { ChatPostMessageResponse } from "@slack/web-api";
 import { tool } from "ai";
 import { z } from "zod";
 
-const createSendMessageToGrowthSquadTool = (threadId?: string) =>
+const createSendMessageToGrowthSquadTool = (
+  threadId?: string,
+  speakerSlackUserId?: string
+) =>
   tool({
     description:
       "Herramienta para enviar un mensaje al equipo organizativo de Tarde de Crecimiento.",
@@ -18,17 +21,12 @@ const createSendMessageToGrowthSquadTool = (threadId?: string) =>
         .describe(
           "El mensaje a enviar al speaker de la charla. Este mensaje se enviará al speaker después de que se haya enviado el mensaje a la squad de Growth. Este mensaje es para informarle al speaker que se ha enviado un mensaje al equipo organizativo"
         ),
-      speakerSlackUserId: z
-        .string()
-        .describe(
-          "El ID del usuario de Slack del speaker de la charla. Este ID se obtiene de la base de datos de Notion."
-        ),
     }),
-    execute: async ({ message, messageForSpeaker, speakerSlackUserId }) => {
+    execute: async ({ message, messageForSpeaker }) => {
       await slack.sendMessageToGrowthSquadChannel(message);
       if (threadId) {
         const messageForSpeakerResponse = await slack.sendDirectMessage(
-          speakerSlackUserId,
+          speakerSlackUserId || "",
           threadId,
           messageForSpeaker
         );
