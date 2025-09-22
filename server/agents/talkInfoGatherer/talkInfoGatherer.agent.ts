@@ -10,6 +10,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import createSendMessageToGrowthSquadTool from "@/sendMessageToGrowthSquad.tool";
 import createSendDirectMessageTool from "@/sendDirectMessage.tool";
+import talkCM from "@/talkCM.agent";
 
 const talkInfoGatherer = {
   async generateText({
@@ -38,9 +39,9 @@ const talkInfoGatherer = {
           speakerSlackUserId
         ),
         getTalksPlanning,
-        finishInformationGathering: tool({
+        sendMessageToGrowthSquadAndAnnounceTalk: tool({
           description:
-            "Utiliza esta herramienta una vez que ya tengas toda la información de la charla. Esta heramienta: enviará un mensaje de despedida al speaker, y también enviará la información al equipo organizativo.",
+            "Utiliza esta herramienta cuando ya tengas toda la información de la charla. Utiliza esta herramienta en lugar de sendMessageToGrowthSquad. Esta heramienta: enviará un mensaje de despedida al speaker, enviará la información al equipo organizativo, pero también arrancará el siguiente paso del flujo para anunciar la charla.",
           inputSchema: z.object({
             speakerMessage: z
               .string()
@@ -52,7 +53,24 @@ const talkInfoGatherer = {
               ),
           }),
           execute: async ({ speakerMessage, growthSquadMessage }) => {
-            await slack.sendMessageToGrowthSquadChannel(growthSquadMessage);
+            console.log("sendMessageToGrowthSquadAndAnnounceTalk tool called");
+            const growthSquadMessageResponse =
+              await slack.sendMessageToGrowthSquadChannel(growthSquadMessage);
+            await memory.clear();
+            await memory.setThreadId(growthSquadMessageResponse.ts || "");
+            await memory.addMessages([
+              {
+                role: "assistant",
+                content: growthSquadMessage,
+                timestamp: growthSquadMessageResponse.ts || "",
+              },
+              {
+                role: "assistant",
+                content:
+                  "Ya he recopilado toda la información de la charla, ahora debo proponer un mensaje para el anuncio y enviarlo al equipo organizativo",
+                timestamp: (Date.now() / 1000).toString(),
+              },
+            ]);
             if (threadId) {
               const messageResponse = await slack.sendDirectMessage(
                 speakerSlackUserId,
@@ -73,7 +91,7 @@ const talkInfoGatherer = {
       stopWhen: [
         hasToolCall("sendDirectMessage"),
         hasToolCall("sendMessageToGrowthSquad"),
-        hasToolCall("finishInformationGathering"),
+        hasToolCall("sendMessageToGrowthSquadAndAnnounceTalk"),
         stepCountIs(5),
       ],
       onStepFinish: async (step) => {
@@ -130,9 +148,25 @@ const talkInfoGatherer = {
           }
           if (
             content.type === "tool-result" &&
-            content.toolName === "finishInformationGathering"
+            content.toolName === "sendMessageToGrowthSquadAndAnnounceTalk"
           ) {
             await memory.clearTalkInfoGathererMemory();
+            const messages = await memory.getMessages();
+            const response = await talkCM.generateText({ messages });
+            if (response.text) {
+              console.log("response generated", response.text);
+              await memory.addMessages([
+                {
+                  role: "assistant",
+                  content: response.text,
+                },
+              ]);
+              const threadId = await memory.getThreadId();
+              await slack.sendMessageToGrowthSquadChannel(
+                response.text,
+                threadId
+              );
+            }
           }
           if (
             content.type === "tool-result" &&

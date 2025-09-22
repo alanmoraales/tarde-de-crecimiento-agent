@@ -11,6 +11,7 @@ const announceTalk = tool({
       .describe("El mensaje de anuncio de la charla formateado en markdown"),
   }),
   execute: async ({ message }) => {
+    console.log("announceTalk tool called");
     await slack.sendMessageToGrowthChannel(message);
     /**
      * After announcing the talk, we need to clear the memory

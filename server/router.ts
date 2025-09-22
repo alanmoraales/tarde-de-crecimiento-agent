@@ -33,7 +33,7 @@ const router = trpc.createRouter({
             "Iniciemos la recolección de información para la próxima charla",
         },
       ]);
-      await memory.setNextWeekTalkSpeakerSlackId("U039C0JRCAK");
+      await memory.setNextWeekTalkSpeakerSlackId("U03AGCJQ1FA");
       const messages = await memory.getTalkInfoGathererMessages();
       const speakerSlackUserId = await memory.getNextWeekTalkSpeakerSlackId();
       await talkInfoGatherer.generateText({ messages, speakerSlackUserId });

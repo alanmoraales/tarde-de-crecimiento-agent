@@ -14,7 +14,7 @@ const talkCM = {
       },
       messages,
       onStepFinish: async (step) => {
-        console.log("step", step);
+        // console.log("step", step);
       },
     });
   },

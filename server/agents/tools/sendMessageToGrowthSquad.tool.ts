@@ -23,6 +23,7 @@ const createSendMessageToGrowthSquadTool = (
         ),
     }),
     execute: async ({ message, messageForSpeaker }) => {
+      console.log("sendMessageToGrowthSquad tool called");
       await slack.sendMessageToGrowthSquadChannel(message);
       if (threadId) {
         const messageForSpeakerResponse = await slack.sendDirectMessage(

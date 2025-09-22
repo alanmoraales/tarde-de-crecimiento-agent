@@ -12,7 +12,7 @@ const getTalksPlanning = tool({
      * For now, we will have a hardcoded value for the next week's talk
      */
     const nextWeekTalkInfo = {
-      title: "Contruyendo un Agente para la Tarde de Crecimiento",
+      title: "Construyendo un Agente para la Tarde de Crecimiento",
       speaker: "Alan Morales",
       date: "25/09/2025",
     };
