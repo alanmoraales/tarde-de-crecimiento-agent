@@ -234,8 +234,23 @@ const executeGreeting = async (event: {
     return;
   }
 
-  const greetingMessage =
-    "Hola, soy el agente de la Tarde de Crecimiento. Actualmente no puedo ayudarte mucho más. Ponte en contacto con un organizador.";
+  const greetingMessage = `¡Hola! 👋 Soy el agente de **Tarde de Crecimiento**.
+
+🚧 **Actualmente estoy en modo DEMO** y puedo ayudarte con diferentes tipos de consultas:
+
+🧠 **Modo Brainstorm** - Para generar ideas de charlas:
+• "Tengo algunas ideas para charlas de IA"
+• "¿Qué temas podrían ser interesantes para el equipo?"
+• "Ayúdame a pensar en charlas sobre desarrollo"
+
+❓ **Modo Question & Answer** - Para responder preguntas:
+• "¿Cuándo fue la última charla de React?"
+• "¿Quién ha dado charlas sobre arquitectura?"
+• "¿Qué temas se han cubierto este año?"
+
+💬 **Prueba enviándome un mensaje** y verás cómo clasifico automáticamente tu intención y activo el modo correspondiente.
+
+Para consultas más complejas, puedes contactar con un organizador.`;
 
   // Add user message to thread
   await memory.addMessagesToThread(
