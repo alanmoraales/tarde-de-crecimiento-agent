@@ -10,6 +10,9 @@
         "./server/memory/*",
         "./server/agents/talkCM/*",
         "./server/agents/talkInfoGatherer/*",
+        "./server/agents/brainstorm/*",
+        "./server/agents/questionAnswering/*",
+        "./server/agents/intentClassifier/*",
         "./server/agents/tools/*"
       ]
     }

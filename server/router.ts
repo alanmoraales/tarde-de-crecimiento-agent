@@ -2,6 +2,9 @@ import trpc from "@/trpc";
 import memory from "@/memory.service";
 import slack from "@/slack.service";
 import talkCM from "@/talkCM.agent";
+import brainstorm from "@/brainstorm.agent";
+import questionAnswering from "@/questionAnswering.agent";
+import intentClassifier from "@/intentClassifier.agent";
 import { z } from "zod";
 import talkInfoGatherer from "@/talkInfoGatherer.agent";
 
@@ -96,7 +99,7 @@ const router = trpc.createRouter({
        */
 
       /**
-       * Direct messages
+       * Direct messages - Now using LLM-based intent classification
        *
        * This type of messages can trigger the following agents:
        * - Brainstorming
@@ -105,19 +108,40 @@ const router = trpc.createRouter({
        */
       const isDirectMessage = slack.isDirectMessage(payload.event.channel_type);
       if (isDirectMessage) {
-        const classification = await classifyDirectMessage(payload.event);
-        console.log("classification", classification);
+        // Check if message is from next week's speaker
+        const nextWeekTalkSlackUserId =
+          await memory.getNextWeekTalkSpeakerSlackId();
+        const isFromNextWeekSpeaker =
+          payload.event.user === nextWeekTalkSlackUserId;
 
-        if (classification === "greeting") {
-          await executeGreeting(payload.event);
-          return;
-        }
+        // Use LLM to classify intent
+        const classification = await intentClassifier.classifyIntent(
+          payload.event.text,
+          isFromNextWeekSpeaker
+        );
 
-        if (classification === "speaker_follow_up") {
+        console.log("Intent classification:", classification);
+
+        // Execute based on classified intent
+        if (classification.intent === "speaker_follow_up") {
           await executeSpeakerFollowUp(payload.event);
           return;
         }
-        return;
+
+        if (classification.intent === "brainstorm") {
+          await executeBrainstorm(payload.event);
+          return;
+        }
+
+        if (classification.intent === "question_answering") {
+          await executeQuestionAnswering(payload.event);
+          return;
+        }
+
+        if (classification.intent === "greeting") {
+          await executeGreeting(payload.event);
+          return;
+        }
       }
 
       /**
@@ -147,21 +171,6 @@ const router = trpc.createRouter({
        */
     }),
 });
-
-const classifyDirectMessage = async (event: {
-  text: string;
-  user: string;
-  thread_ts: string;
-  ts: string;
-  channel_type: string;
-}) => {
-  const nextWeekTalkSlackUserId = await memory.getNextWeekTalkSpeakerSlackId();
-  const isNextWeekTalkSpeaker = event.user === nextWeekTalkSlackUserId;
-  if (isNextWeekTalkSpeaker) {
-    return "speaker_follow_up";
-  }
-  return "greeting";
-};
 
 const executeSpeakerFollowUp = async (event: {
   text: string;
@@ -220,6 +229,52 @@ const executeGreeting = async (event: {
     event.thread_ts,
     "Hola, soy el agente de la Tarde de Crecimiento. Actualmente no puedo ayudarte mucho más. Ponte en contacto con un organizador."
   );
+};
+
+const executeBrainstorm = async (event: {
+  text: string;
+  user: string;
+  thread_ts: string;
+  ts: string;
+  channel_type: string;
+}) => {
+  console.log("Executing brainstorm agent");
+
+  const response = await brainstorm.generateText({
+    messages: [
+      {
+        role: "user",
+        content: event.text,
+      },
+    ],
+  });
+
+  if (response.text) {
+    await slack.sendDirectMessage(event.user, event.thread_ts, response.text);
+  }
+};
+
+const executeQuestionAnswering = async (event: {
+  text: string;
+  user: string;
+  thread_ts: string;
+  ts: string;
+  channel_type: string;
+}) => {
+  console.log("Executing question answering agent");
+
+  const response = await questionAnswering.generateText({
+    messages: [
+      {
+        role: "user",
+        content: event.text,
+      },
+    ],
+  });
+
+  if (response.text) {
+    await slack.sendDirectMessage(event.user, event.thread_ts, response.text);
+  }
 };
 
 const classifyGrowthSquadMessage = async (event: {
