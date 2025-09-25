@@ -47,11 +47,11 @@ const router = trpc.createRouter({
   ),
   onNewMessage: trpc.publicProcedure
     // Middleware to debug raw input before parsing
-    .use(async (props) => {
-      const rawInput = await props.getRawInput();
-      console.log("New message", rawInput);
-      return props.next();
-    })
+    // .use(async (props) => {
+    //   const rawInput = await props.getRawInput();
+    //   console.log("New message", rawInput);
+    //   return props.next();
+    // })
     .input(
       z.discriminatedUnion("type", [
         z.object({
