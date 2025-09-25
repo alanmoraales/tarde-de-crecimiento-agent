@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { Message } from "@/memory.types";
 import slack from "@/slack.service";
 import memory from "@/memory.service";
+import environment from "@/environment.service";
 
 const communityInteraction = {
   async generateText({
@@ -38,8 +39,8 @@ const communityInteraction = {
             console.log("Community agent decided to respond:", reasoning);
 
             if (channelId && messageTs) {
-              // Send message to the channel
-              await slack.sendMessageToGrowthChannel(message);
+              // Send message to the channel in the thread
+              await slack.sendMessageToGrowthChannel(message, messageTs);
 
               // Save assistant response to thread memory
               await memory.addMessagesToThread(
@@ -53,7 +54,7 @@ const communityInteraction = {
                 ],
                 "channel",
                 undefined,
-                channelId
+                environment.slack.growthChannelId
               );
 
               return {

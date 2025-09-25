@@ -14,10 +14,14 @@ const sendMessageToGrowthSquadChannel = async (
   });
 };
 
-const sendMessageToGrowthChannel = async (message: string) => {
+const sendMessageToGrowthChannel = async (
+  message: string,
+  threadId?: string
+) => {
   return await slack.chat.postMessage({
     channel: environment.slack.growthChannelId,
     markdown_text: message,
+    thread_ts: threadId,
   });
 };
 

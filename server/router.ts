@@ -7,6 +7,7 @@ import questionAnswering from "@/questionAnswering.agent";
 import intentClassifier from "@/intentClassifier.agent";
 import communityInteraction from "@/communityInteraction.agent";
 import channelIntentClassifier from "@/channelIntentClassifier.agent";
+import environment from "@/environment.service";
 import { z } from "zod";
 import talkInfoGatherer from "@/talkInfoGatherer.agent";
 
@@ -46,11 +47,11 @@ const router = trpc.createRouter({
   ),
   onNewMessage: trpc.publicProcedure
     // Middleware to debug raw input before parsing
-    // .use(async (props) => {
-    //   const rawInput = await props.getRawInput();
-    //   console.log("New message", rawInput);
-    //   return props.next();
-    // })
+    .use(async (props) => {
+      const rawInput = await props.getRawInput();
+      console.log("New message", rawInput);
+      return props.next();
+    })
     .input(
       z.discriminatedUnion("type", [
         z.object({
@@ -65,6 +66,7 @@ const router = trpc.createRouter({
             thread_ts: z.string(),
             ts: z.string(),
             channel_type: z.string(),
+            channel: z.string(),
           }),
         }),
       ])
@@ -109,6 +111,7 @@ const router = trpc.createRouter({
        * - Speaker following
        */
       const isDirectMessage = slack.isDirectMessage(payload.event.channel_type);
+      console.log("isDirectMessage", isDirectMessage);
       if (isDirectMessage) {
         // Check if message is from next week's speaker
         const nextWeekTalkSlackUserId =
@@ -156,10 +159,16 @@ const router = trpc.createRouter({
        * For now, all messages that are not direct will be considered as messages from the growth squad channel
        * @todo implement speaker following
        */
-      const classification = await classifyGrowthSquadMessage(payload.event);
-      if (classification === "talk_announcement") {
-        await executeTalkAnnouncement(payload.event);
-        return;
+      const isMessageFromGrowthSquad =
+        payload.event.channel === environment.slack.growthSquadChannelId;
+      console.log("isMessageFromGrowthSquad", isMessageFromGrowthSquad);
+      if (isMessageFromGrowthSquad) {
+        const classification = await classifyGrowthSquadMessage(payload.event);
+        console.log("Growth squad message classification:", classification);
+        if (classification === "talk_announcement") {
+          await executeTalkAnnouncement(payload.event);
+          return;
+        }
       }
 
       /**
@@ -169,18 +178,26 @@ const router = trpc.createRouter({
        * - Question answering
        * - Community interaction
        */
-      const channelClassification =
-        await channelIntentClassifier.classifyIntent(payload.event.text);
-      console.log("Channel intent classification:", channelClassification);
+      const isMessageFromGrowthChannel =
+        payload.event.channel === environment.slack.growthChannelId;
+      console.log("isMessageFromGrowthChannel", isMessageFromGrowthChannel);
+      if (isMessageFromGrowthChannel) {
+        const channelClassification =
+          await channelIntentClassifier.classifyIntent(payload.event.text);
+        console.log(
+          "Growth channel intent classification:",
+          channelClassification
+        );
 
-      if (channelClassification.intent === "community_interaction") {
-        await executeCommunityInteraction(payload.event);
-        return;
-      }
+        if (channelClassification.intent === "community_interaction") {
+          await executeCommunityInteraction(payload.event);
+          return;
+        }
 
-      if (channelClassification.intent === "question_answering") {
-        await executeChannelQuestionAnswering(payload.event);
-        return;
+        if (channelClassification.intent === "question_answering") {
+          await executeChannelQuestionAnswering(payload.event);
+          return;
+        }
       }
     }),
 });
@@ -511,7 +528,7 @@ const executeCommunityInteraction = async (event: {
     ],
     "channel",
     undefined,
-    "tarde-de-crecimiento" // channelId
+    environment.slack.growthChannelId
   );
 
   // Get thread messages for context
@@ -519,8 +536,8 @@ const executeCommunityInteraction = async (event: {
 
   const response = await communityInteraction.generateText({
     messages: threadMessages,
-    channelId: "tarde-de-crecimiento",
-    messageTs: event.ts,
+    channelId: environment.slack.growthChannelId,
+    messageTs: event.thread_ts,
   });
 
   // The community interaction agent handles its own response logic through tools
@@ -558,7 +575,7 @@ const executeChannelQuestionAnswering = async (event: {
     ],
     "channel",
     undefined,
-    "tarde-de-crecimiento" // channelId
+    environment.slack.growthChannelId
   );
 
   // Get thread messages for context
@@ -569,8 +586,8 @@ const executeChannelQuestionAnswering = async (event: {
   });
 
   if (response.text) {
-    // Send response to the channel
-    await slack.sendMessageToGrowthChannel(response.text);
+    // Send response to the channel in the thread
+    await slack.sendMessageToGrowthChannel(response.text, event.thread_ts);
 
     // Add assistant response to thread
     await memory.addMessagesToThread(
@@ -584,7 +601,7 @@ const executeChannelQuestionAnswering = async (event: {
       ],
       "channel",
       undefined,
-      "tarde-de-crecimiento"
+      environment.slack.growthChannelId
     );
   }
 };
