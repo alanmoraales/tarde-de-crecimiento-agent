@@ -5,6 +5,8 @@ import talkCM from "@/talkCM.agent";
 import brainstorm from "@/brainstorm.agent";
 import questionAnswering from "@/questionAnswering.agent";
 import intentClassifier from "@/intentClassifier.agent";
+import communityInteraction from "@/communityInteraction.agent";
+import channelIntentClassifier from "@/channelIntentClassifier.agent";
 import { z } from "zod";
 import talkInfoGatherer from "@/talkInfoGatherer.agent";
 
@@ -166,9 +168,20 @@ const router = trpc.createRouter({
        * This type of messages can trigger the following agents:
        * - Question answering
        * - Community interaction
-       *
-       * @todo implement this agents
        */
+      const channelClassification =
+        await channelIntentClassifier.classifyIntent(payload.event.text);
+      console.log("Channel intent classification:", channelClassification);
+
+      if (channelClassification.intent === "community_interaction") {
+        await executeCommunityInteraction(payload.event);
+        return;
+      }
+
+      if (channelClassification.intent === "question_answering") {
+        await executeChannelQuestionAnswering(payload.event);
+        return;
+      }
     }),
 });
 
@@ -464,6 +477,115 @@ const executeTalkAnnouncement = async (event: {
     ]);
     const threadId = await memory.getThreadId();
     await slack.sendMessageToGrowthSquadChannel(response.text, threadId);
+  }
+};
+
+const executeCommunityInteraction = async (event: {
+  text: string;
+  user: string;
+  thread_ts: string;
+  ts: string;
+  channel_type: string;
+}) => {
+  console.log("Executing community interaction agent");
+
+  /**
+   * Check if the message is new to avoid responding more than once to the same message
+   */
+  const isNewMessage = await memory.isMessageNew(event.thread_ts, event.ts);
+  if (!isNewMessage) {
+    console.log("is not a new message, skipping");
+    return;
+  }
+
+  // Add user message to thread
+  await memory.addMessagesToThread(
+    event.thread_ts,
+    [
+      {
+        role: "user",
+        content: event.text,
+        timestamp: event.ts,
+        slackUserId: event.user,
+      },
+    ],
+    "channel",
+    undefined,
+    "tarde-de-crecimiento" // channelId
+  );
+
+  // Get thread messages for context
+  const threadMessages = await memory.getThreadMessages(event.thread_ts);
+
+  const response = await communityInteraction.generateText({
+    messages: threadMessages,
+    channelId: "tarde-de-crecimiento",
+    messageTs: event.ts,
+  });
+
+  // The community interaction agent handles its own response logic through tools
+  console.log("Community interaction agent finished processing");
+};
+
+const executeChannelQuestionAnswering = async (event: {
+  text: string;
+  user: string;
+  thread_ts: string;
+  ts: string;
+  channel_type: string;
+}) => {
+  console.log("Executing question answering agent for channel message");
+
+  /**
+   * Check if the message is new to avoid responding more than once to the same message
+   */
+  const isNewMessage = await memory.isMessageNew(event.thread_ts, event.ts);
+  if (!isNewMessage) {
+    console.log("is not a new message, skipping");
+    return;
+  }
+
+  // Add user message to thread
+  await memory.addMessagesToThread(
+    event.thread_ts,
+    [
+      {
+        role: "user",
+        content: event.text,
+        timestamp: event.ts,
+        slackUserId: event.user,
+      },
+    ],
+    "channel",
+    undefined,
+    "tarde-de-crecimiento" // channelId
+  );
+
+  // Get thread messages for context
+  const threadMessages = await memory.getThreadMessages(event.thread_ts);
+
+  const response = await questionAnswering.generateText({
+    messages: threadMessages,
+  });
+
+  if (response.text) {
+    // Send response to the channel
+    await slack.sendMessageToGrowthChannel(response.text);
+
+    // Add assistant response to thread
+    await memory.addMessagesToThread(
+      event.thread_ts,
+      [
+        {
+          role: "assistant",
+          content: response.text,
+          timestamp: (Date.now() / 1000).toString(),
+        },
+      ],
+      "channel",
+      undefined,
+      "tarde-de-crecimiento"
+    );
   }
 };
 

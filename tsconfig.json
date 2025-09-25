@@ -13,6 +13,8 @@
         "./server/agents/brainstorm/*",
         "./server/agents/questionAnswering/*",
         "./server/agents/intentClassifier/*",
+        "./server/agents/communityInteraction/*",
+        "./server/agents/channelIntentClassifier/*",
         "./server/agents/tools/*"
       ]
     }
