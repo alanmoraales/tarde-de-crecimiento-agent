@@ -63,7 +63,7 @@ const router = trpc.createRouter({
           event: z.object({
             text: z.string(),
             user: z.string(),
-            thread_ts: z.string(),
+            thread_ts: z.string().optional(),
             ts: z.string(),
             channel_type: z.string(),
             channel: z.string(),
@@ -202,10 +202,17 @@ const router = trpc.createRouter({
     }),
 });
 
+// Helper function to get the correct thread_ts for responses
+const getThreadTs = (event: { thread_ts?: string; ts: string }) => {
+  // If there's already a thread_ts, use it (this is a reply in an existing thread)
+  // If not, use the message ts (this will create a new thread from the original message)
+  return event.thread_ts || event.ts;
+};
+
 const executeSpeakerFollowUp = async (event: {
   text: string;
   user: string;
-  thread_ts: string;
+  thread_ts?: string;
   ts: string;
   channel_type: string;
 }) => {
@@ -215,6 +222,7 @@ const executeSpeakerFollowUp = async (event: {
    * @todo create a global guard to check if the message is new
    * and avoid duplicating the code for each agent
    */
+  const threadTs = getThreadTs(event);
   const currentMessages = await memory.getTalkInfoGathererMessages();
   const isNewMessage = currentMessages.every(
     (message) => message.timestamp !== event.ts
@@ -240,7 +248,7 @@ const executeSpeakerFollowUp = async (event: {
   await talkInfoGatherer.generateText({
     messages,
     requireToolChoice: true,
-    threadId: event.thread_ts,
+    threadId: threadTs,
     speakerSlackUserId,
   });
   return;
@@ -249,16 +257,18 @@ const executeSpeakerFollowUp = async (event: {
 const executeGreeting = async (event: {
   text: string;
   user: string;
-  thread_ts: string;
+  thread_ts?: string;
   ts: string;
   channel_type: string;
 }) => {
   console.log("Sending greeting");
 
+  const threadTs = getThreadTs(event);
+
   /**
    * Check if the message is new to avoid responding more than once to the same message
    */
-  const isNewMessage = await memory.isMessageNew(event.thread_ts, event.ts);
+  const isNewMessage = await memory.isMessageNew(threadTs, event.ts);
   if (!isNewMessage) {
     console.log("is not a new message, skipping");
     return;
@@ -284,7 +294,7 @@ Para consultas más complejas, puedes contactar con un organizador.`;
 
   // Add user message to thread
   await memory.addMessagesToThread(
-    event.thread_ts,
+    threadTs,
     [
       {
         role: "user",
@@ -298,11 +308,11 @@ Para consultas más complejas, puedes contactar con un organizador.`;
   );
 
   // Send greeting response
-  await slack.sendDirectMessage(event.user, event.thread_ts, greetingMessage);
+  await slack.sendDirectMessage(event.user, threadTs, greetingMessage);
 
   // Add assistant response to thread
   await memory.addMessagesToThread(
-    event.thread_ts,
+    threadTs,
     [
       {
         role: "assistant",
@@ -318,16 +328,18 @@ Para consultas más complejas, puedes contactar con un organizador.`;
 const executeBrainstorm = async (event: {
   text: string;
   user: string;
-  thread_ts: string;
+  thread_ts?: string;
   ts: string;
   channel_type: string;
 }) => {
   console.log("Executing brainstorm agent");
 
+  const threadTs = getThreadTs(event);
+
   /**
    * Check if the message is new to avoid responding more than once to the same message
    */
-  const isNewMessage = await memory.isMessageNew(event.thread_ts, event.ts);
+  const isNewMessage = await memory.isMessageNew(threadTs, event.ts);
   if (!isNewMessage) {
     console.log("is not a new message, skipping");
     return;
@@ -335,7 +347,7 @@ const executeBrainstorm = async (event: {
 
   // Add user message to thread
   await memory.addMessagesToThread(
-    event.thread_ts,
+    threadTs,
     [
       {
         role: "user",
@@ -349,7 +361,7 @@ const executeBrainstorm = async (event: {
   );
 
   // Get thread messages for context
-  const threadMessages = await memory.getThreadMessages(event.thread_ts);
+  const threadMessages = await memory.getThreadMessages(threadTs);
 
   const response = await brainstorm.generateText({
     messages: threadMessages,
@@ -357,11 +369,11 @@ const executeBrainstorm = async (event: {
 
   if (response.text) {
     // Send response to Slack
-    await slack.sendDirectMessage(event.user, event.thread_ts, response.text);
+    await slack.sendDirectMessage(event.user, threadTs, response.text);
 
     // Add assistant response to thread
     await memory.addMessagesToThread(
-      event.thread_ts,
+      threadTs,
       [
         {
           role: "assistant",
@@ -378,16 +390,18 @@ const executeBrainstorm = async (event: {
 const executeQuestionAnswering = async (event: {
   text: string;
   user: string;
-  thread_ts: string;
+  thread_ts?: string;
   ts: string;
   channel_type: string;
 }) => {
   console.log("Executing question answering agent");
 
+  const threadTs = getThreadTs(event);
+
   /**
    * Check if the message is new to avoid responding more than once to the same message
    */
-  const isNewMessage = await memory.isMessageNew(event.thread_ts, event.ts);
+  const isNewMessage = await memory.isMessageNew(threadTs, event.ts);
   if (!isNewMessage) {
     console.log("is not a new message, skipping");
     return;
@@ -395,7 +409,7 @@ const executeQuestionAnswering = async (event: {
 
   // Add user message to thread
   await memory.addMessagesToThread(
-    event.thread_ts,
+    threadTs,
     [
       {
         role: "user",
@@ -409,7 +423,7 @@ const executeQuestionAnswering = async (event: {
   );
 
   // Get thread messages for context
-  const threadMessages = await memory.getThreadMessages(event.thread_ts);
+  const threadMessages = await memory.getThreadMessages(threadTs);
 
   const response = await questionAnswering.generateText({
     messages: threadMessages,
@@ -417,11 +431,11 @@ const executeQuestionAnswering = async (event: {
 
   if (response.text) {
     // Send response to Slack
-    await slack.sendDirectMessage(event.user, event.thread_ts, response.text);
+    await slack.sendDirectMessage(event.user, threadTs, response.text);
 
     // Add assistant response to thread
     await memory.addMessagesToThread(
-      event.thread_ts,
+      threadTs,
       [
         {
           role: "assistant",
@@ -438,12 +452,13 @@ const executeQuestionAnswering = async (event: {
 const classifyGrowthSquadMessage = async (event: {
   text: string;
   user: string;
-  thread_ts: string;
+  thread_ts?: string;
   ts: string;
   channel_type: string;
 }) => {
   const planningThreadId = await memory.getThreadId();
-  const isMessageFromPlanningThread = event.thread_ts === planningThreadId;
+  const threadTs = getThreadTs(event);
+  const isMessageFromPlanningThread = threadTs === planningThreadId;
   if (isMessageFromPlanningThread) {
     return "talk_announcement";
   }
@@ -454,7 +469,7 @@ const classifyGrowthSquadMessage = async (event: {
 const executeTalkAnnouncement = async (event: {
   text: string;
   user: string;
-  thread_ts: string;
+  thread_ts?: string;
   ts: string;
   channel_type: string;
 }) => {
@@ -500,16 +515,18 @@ const executeTalkAnnouncement = async (event: {
 const executeCommunityInteraction = async (event: {
   text: string;
   user: string;
-  thread_ts: string;
+  thread_ts?: string;
   ts: string;
   channel_type: string;
 }) => {
   console.log("Executing community interaction agent");
 
+  const threadTs = getThreadTs(event);
+
   /**
    * Check if the message is new to avoid responding more than once to the same message
    */
-  const isNewMessage = await memory.isMessageNew(event.thread_ts, event.ts);
+  const isNewMessage = await memory.isMessageNew(threadTs, event.ts);
   if (!isNewMessage) {
     console.log("is not a new message, skipping");
     return;
@@ -517,7 +534,7 @@ const executeCommunityInteraction = async (event: {
 
   // Add user message to thread
   await memory.addMessagesToThread(
-    event.thread_ts,
+    threadTs,
     [
       {
         role: "user",
@@ -532,12 +549,12 @@ const executeCommunityInteraction = async (event: {
   );
 
   // Get thread messages for context
-  const threadMessages = await memory.getThreadMessages(event.thread_ts);
+  const threadMessages = await memory.getThreadMessages(threadTs);
 
   const response = await communityInteraction.generateText({
     messages: threadMessages,
     channelId: environment.slack.growthChannelId,
-    messageTs: event.thread_ts,
+    messageTs: threadTs,
   });
 
   // The community interaction agent handles its own response logic through tools
@@ -547,16 +564,18 @@ const executeCommunityInteraction = async (event: {
 const executeChannelQuestionAnswering = async (event: {
   text: string;
   user: string;
-  thread_ts: string;
+  thread_ts?: string;
   ts: string;
   channel_type: string;
 }) => {
   console.log("Executing question answering agent for channel message");
 
+  const threadTs = getThreadTs(event);
+
   /**
    * Check if the message is new to avoid responding more than once to the same message
    */
-  const isNewMessage = await memory.isMessageNew(event.thread_ts, event.ts);
+  const isNewMessage = await memory.isMessageNew(threadTs, event.ts);
   if (!isNewMessage) {
     console.log("is not a new message, skipping");
     return;
@@ -564,7 +583,7 @@ const executeChannelQuestionAnswering = async (event: {
 
   // Add user message to thread
   await memory.addMessagesToThread(
-    event.thread_ts,
+    threadTs,
     [
       {
         role: "user",
@@ -579,7 +598,7 @@ const executeChannelQuestionAnswering = async (event: {
   );
 
   // Get thread messages for context
-  const threadMessages = await memory.getThreadMessages(event.thread_ts);
+  const threadMessages = await memory.getThreadMessages(threadTs);
 
   const response = await questionAnswering.generateText({
     messages: threadMessages,
@@ -587,11 +606,11 @@ const executeChannelQuestionAnswering = async (event: {
 
   if (response.text) {
     // Send response to the channel in the thread
-    await slack.sendMessageToGrowthChannel(response.text, event.thread_ts);
+    await slack.sendMessageToGrowthChannel(response.text, threadTs);
 
     // Add assistant response to thread
     await memory.addMessagesToThread(
-      event.thread_ts,
+      threadTs,
       [
         {
           role: "assistant",
