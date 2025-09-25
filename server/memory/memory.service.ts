@@ -101,6 +101,69 @@ const getThreadId = async () => {
   return db.data.threadId;
 };
 
+// New threads structure functions
+const findOrCreateThread = async (
+  threadId: string,
+  source: "direct" | "channel",
+  slackUserId?: string,
+  channelId?: string
+) => {
+  const db = await getDb();
+
+  // Look for existing thread
+  let thread = db.data.threads.find((t) => t.threadId === threadId);
+
+  if (!thread) {
+    // Create new thread
+    thread = {
+      id: `thread_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      source,
+      threadId,
+      messages: [],
+      slackUserId,
+      channelId,
+    };
+    db.data.threads.push(thread);
+    await db.write();
+  }
+
+  return thread;
+};
+
+const addMessagesToThread = async (
+  threadId: string,
+  messages: Message[],
+  source: "direct" | "channel",
+  slackUserId?: string,
+  channelId?: string
+) => {
+  const db = await getDb();
+  const thread = await findOrCreateThread(
+    threadId,
+    source,
+    slackUserId,
+    channelId
+  );
+
+  // Find the thread in the current db state and add messages
+  const threadIndex = db.data.threads.findIndex((t) => t.id === thread.id);
+  if (threadIndex !== -1) {
+    db.data.threads[threadIndex].messages.push(...messages);
+    await db.write();
+  }
+};
+
+const getThreadMessages = async (threadId: string) => {
+  const db = await getDb();
+  const thread = db.data.threads.find((t) => t.threadId === threadId);
+  return thread ? thread.messages : [];
+};
+
+const isMessageNew = async (threadId: string, messageTimestamp: string) => {
+  const messages = await getThreadMessages(threadId);
+  return messages.every((message) => message.timestamp !== messageTimestamp);
+};
+
 const memory = {
   clear: clearMemory,
   addMessages,
@@ -114,6 +177,11 @@ const memory = {
   getTalkInfoGathererThreadId,
   setNextWeekTalkSpeakerSlackId,
   getNextWeekTalkSpeakerSlackId,
+  // New threads functions
+  findOrCreateThread,
+  addMessagesToThread,
+  getThreadMessages,
+  isMessageNew,
 };
 
 export default memory;

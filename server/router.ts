@@ -224,10 +224,49 @@ const executeGreeting = async (event: {
   channel_type: string;
 }) => {
   console.log("Sending greeting");
-  await slack.sendDirectMessage(
-    event.user,
+
+  /**
+   * Check if the message is new to avoid responding more than once to the same message
+   */
+  const isNewMessage = await memory.isMessageNew(event.thread_ts, event.ts);
+  if (!isNewMessage) {
+    console.log("is not a new message, skipping");
+    return;
+  }
+
+  const greetingMessage =
+    "Hola, soy el agente de la Tarde de Crecimiento. Actualmente no puedo ayudarte mucho más. Ponte en contacto con un organizador.";
+
+  // Add user message to thread
+  await memory.addMessagesToThread(
     event.thread_ts,
-    "Hola, soy el agente de la Tarde de Crecimiento. Actualmente no puedo ayudarte mucho más. Ponte en contacto con un organizador."
+    [
+      {
+        role: "user",
+        content: event.text,
+        timestamp: event.ts,
+        slackUserId: event.user,
+      },
+    ],
+    "direct",
+    event.user
+  );
+
+  // Send greeting response
+  await slack.sendDirectMessage(event.user, event.thread_ts, greetingMessage);
+
+  // Add assistant response to thread
+  await memory.addMessagesToThread(
+    event.thread_ts,
+    [
+      {
+        role: "assistant",
+        content: greetingMessage,
+        timestamp: (Date.now() / 1000).toString(),
+      },
+    ],
+    "direct",
+    event.user
   );
 };
 
@@ -240,17 +279,54 @@ const executeBrainstorm = async (event: {
 }) => {
   console.log("Executing brainstorm agent");
 
-  const response = await brainstorm.generateText({
-    messages: [
+  /**
+   * Check if the message is new to avoid responding more than once to the same message
+   */
+  const isNewMessage = await memory.isMessageNew(event.thread_ts, event.ts);
+  if (!isNewMessage) {
+    console.log("is not a new message, skipping");
+    return;
+  }
+
+  // Add user message to thread
+  await memory.addMessagesToThread(
+    event.thread_ts,
+    [
       {
         role: "user",
         content: event.text,
+        timestamp: event.ts,
+        slackUserId: event.user,
       },
     ],
+    "direct",
+    event.user
+  );
+
+  // Get thread messages for context
+  const threadMessages = await memory.getThreadMessages(event.thread_ts);
+
+  const response = await brainstorm.generateText({
+    messages: threadMessages,
   });
 
   if (response.text) {
+    // Send response to Slack
     await slack.sendDirectMessage(event.user, event.thread_ts, response.text);
+
+    // Add assistant response to thread
+    await memory.addMessagesToThread(
+      event.thread_ts,
+      [
+        {
+          role: "assistant",
+          content: response.text,
+          timestamp: (Date.now() / 1000).toString(),
+        },
+      ],
+      "direct",
+      event.user
+    );
   }
 };
 
@@ -263,17 +339,54 @@ const executeQuestionAnswering = async (event: {
 }) => {
   console.log("Executing question answering agent");
 
-  const response = await questionAnswering.generateText({
-    messages: [
+  /**
+   * Check if the message is new to avoid responding more than once to the same message
+   */
+  const isNewMessage = await memory.isMessageNew(event.thread_ts, event.ts);
+  if (!isNewMessage) {
+    console.log("is not a new message, skipping");
+    return;
+  }
+
+  // Add user message to thread
+  await memory.addMessagesToThread(
+    event.thread_ts,
+    [
       {
         role: "user",
         content: event.text,
+        timestamp: event.ts,
+        slackUserId: event.user,
       },
     ],
+    "direct",
+    event.user
+  );
+
+  // Get thread messages for context
+  const threadMessages = await memory.getThreadMessages(event.thread_ts);
+
+  const response = await questionAnswering.generateText({
+    messages: threadMessages,
   });
 
   if (response.text) {
+    // Send response to Slack
     await slack.sendDirectMessage(event.user, event.thread_ts, response.text);
+
+    // Add assistant response to thread
+    await memory.addMessagesToThread(
+      event.thread_ts,
+      [
+        {
+          role: "assistant",
+          content: response.text,
+          timestamp: (Date.now() / 1000).toString(),
+        },
+      ],
+      "direct",
+      event.user
+    );
   }
 };
 
